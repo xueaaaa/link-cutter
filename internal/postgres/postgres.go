@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"link-cutter/config"
+	"link-cutter/internal/app/config"
 
 	"github.com/jackc/pgx/v5"
 )
