@@ -7,6 +7,8 @@ import (
 	"link-cutter/internal/app/util"
 	"link-cutter/internal/link/repository"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type LinkService interface {
@@ -14,20 +16,33 @@ type LinkService interface {
 }
 
 type linkService struct {
-	repo repository.LinkRepository
+	repo     repository.LinkRepository
+	validate *validator.Validate
+}
+
+func NewLinkService(repo repository.LinkRepository) LinkService {
+	return &linkService{
+		repo:     repo,
+		validate: validator.New(),
+	}
 }
 
 func (s *linkService) Create(ctx context.Context, origin string) error {
 	link := repository.LinkModel{
-		Origin: origin,
+		Origin:       origin,
 		CreationDate: time.Now(),
 	}
 
 	for i := 0; i < 10; i++ {
 		shortId := util.GenerateShortId(8)
 		link.ShortId = shortId
-		err := s.repo.Create(ctx, link)
 
+		err := s.validate.StructCtx(ctx, link)
+		if err != nil {
+			return err
+		}
+
+		err = s.repo.Create(ctx, link)
 		if err == nil {
 			return nil
 		}
