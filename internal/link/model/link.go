@@ -8,8 +8,8 @@ import (
 
 type Link struct {
 	Id             pgtype.UUID
-	ShortId        string     `validate:"required,len=8"`
-	Origin         string     `validate:"required,url,max=4096"`
-	CreationDate   time.Time  `validate:"required,datetime"`
-	LastAccessDate *time.Time `validate:"datetime"`
+	ShortId        string    `validate:"required,len=8"`
+	Origin         string    `validate:"required,url,max=4096"`
+	CreationDate   time.Time `validate:"required"`
+	LastAccessDate *time.Time
 }

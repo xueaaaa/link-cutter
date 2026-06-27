@@ -5,6 +5,7 @@ import (
 	"errors"
 	errors2 "link-cutter/internal/app/errors"
 	"link-cutter/internal/app/util"
+	"link-cutter/internal/link/model"
 	"link-cutter/internal/link/repository"
 	"time"
 
@@ -28,7 +29,7 @@ func NewLinkService(repo repository.LinkRepository) LinkService {
 }
 
 func (s *linkService) Create(ctx context.Context, origin string) error {
-	link := repository.LinkModel{
+	link := model.Link{
 		Origin:       origin,
 		CreationDate: time.Now(),
 	}
@@ -42,7 +43,7 @@ func (s *linkService) Create(ctx context.Context, origin string) error {
 			return err
 		}
 
-		err = s.repo.Create(ctx, link)
+		err = s.repo.Create(ctx, repository.LinkModel(link))
 		if err == nil {
 			return nil
 		}
