@@ -13,6 +13,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	middleware2 "github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -42,6 +43,7 @@ func main() {
 	linkService := service.NewLinkService(linkRepo)
 	linkHandler := handler.NewLinkHandler(linkService, logger)
 
+	r.Use(middleware2.RequestID)
 	r.Use(middleware.Logging(logger))
 
 	r.Route("/link", func(r chi.Router) {

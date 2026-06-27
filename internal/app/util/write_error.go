@@ -7,11 +7,12 @@ import (
 	"time"
 )
 
-func WriteError(w http.ResponseWriter, statusCode int, msg string) {
+func WriteError(w http.ResponseWriter, statusCode int, msg string, reqId string) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
 	jsonErr := errors2.ErrorResponse{
+		RequestId: reqId,
 		Message:   msg,
 		Timestamp: time.Now().UTC(),
 	}

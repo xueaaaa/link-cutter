@@ -6,6 +6,7 @@ import (
 	"link-cutter/internal/link/service"
 	"net/http"
 
+	middleware2 "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -27,16 +28,30 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&createDto)
 	if err != nil {
 		h.logger.Error(err.Error())
-		util.WriteError(w, http.StatusBadRequest, err.Error())
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			r.Context().Value(middleware2.RequestIDKey).(string),
+		)
 		return
 	}
 
-	err = h.service.Create(ctx, createDto.Origin)
+	id, err := h.service.Create(ctx, createDto.Origin)
 	if err != nil {
 		h.logger.Error(err.Error())
-		util.WriteError(w, http.StatusInternalServerError, err.Error())
+		util.WriteError(
+			w,
+			http.StatusInternalServerError,
+			err.Error(),
+			r.Context().Value(middleware2.RequestIDKey).(string),
+		)
 		return
 	}
 
+	h.logger.Info("link created",
+		zap.String("id", id.String()),
+		zap.String("req_id", r.Context().Value(middleware2.RequestIDKey).(string)),
+	)
 	w.WriteHeader(http.StatusCreated)
 }

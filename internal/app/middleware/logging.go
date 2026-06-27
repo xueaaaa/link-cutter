@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	middleware2 "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -12,6 +13,7 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 			logger.Info("request",
 				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
+				zap.String("req_id", r.Context().Value(middleware2.RequestIDKey).(string)),
 			)
 
 			next.ServeHTTP(w, r)
