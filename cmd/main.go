@@ -46,6 +46,7 @@ func main() {
 	r.Use(middleware2.RequestID)
 	r.Use(middleware.Logging(logger))
 
+	r.Get("/{shortId}", linkHandler.Go)
 	r.Route("/link", func(r chi.Router) {
 		r.Post("/", linkHandler.Create)
 	})

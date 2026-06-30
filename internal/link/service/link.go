@@ -15,6 +15,7 @@ import (
 
 type LinkService interface {
 	Create(ctx context.Context, origin string) (pgtype.UUID, error)
+	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
 }
 
 type linkService struct {
@@ -57,4 +58,21 @@ func (s *linkService) Create(ctx context.Context, origin string) (pgtype.UUID, e
 	}
 
 	return pgtype.UUID{}, errors2.ErrShortIdLimitExceeded
+}
+
+func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.Link, error) {
+	lm, err := s.repo.FindByShortId(ctx, shortId)
+	if err != nil {
+		return model.Link{}, err
+	}
+
+	link := model.Link{
+		Id:             lm.Id,
+		ShortId:        lm.ShortId,
+		Origin:         lm.Origin,
+		CreationDate:   lm.CreationDate,
+		LastAccessDate: lm.LastAccessDate,
+	}
+
+	return link, nil
 }
