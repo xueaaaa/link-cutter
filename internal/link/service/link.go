@@ -16,6 +16,7 @@ import (
 type LinkService interface {
 	Create(ctx context.Context, origin string) (pgtype.UUID, error)
 	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
+	Edit(ctx context.Context, link model.Link) error
 }
 
 type linkService struct {
@@ -70,6 +71,8 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 		return model.Link{}, errors2.ErrLinkNotFound
 	}
 
+	now := time.Now().UTC()
+	lm.LastAccessDate = &now
 	link := model.Link{
 		Id:             lm.Id,
 		ShortId:        lm.ShortId,
@@ -78,5 +81,21 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 		LastAccessDate: lm.LastAccessDate,
 	}
 
+	err = s.Edit(ctx, link)
+	if err != nil {
+		return model.Link{}, err
+	}
+
 	return link, nil
+}
+
+func (s *linkService) Edit(ctx context.Context, link model.Link) error {
+	lm := repository.LinkModel{
+		Id:             link.Id,
+		ShortId:        link.ShortId,
+		Origin:         link.Origin,
+		CreationDate:   link.CreationDate,
+		LastAccessDate: link.LastAccessDate,
+	}
+	return s.repo.Edit(ctx, lm)
 }
