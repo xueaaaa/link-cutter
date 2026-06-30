@@ -1,9 +1,9 @@
 package middleware
 
 import (
+	"link-cutter/internal/app/util"
 	"net/http"
 
-	middleware2 "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -13,7 +13,7 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 			logger.Info("request",
 				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
-				zap.String("req_id", r.Context().Value(middleware2.RequestIDKey).(string)),
+				zap.String("req_id", util.GetRequestId(r)),
 			)
 
 			next.ServeHTTP(w, r)
