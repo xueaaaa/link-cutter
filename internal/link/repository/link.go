@@ -7,10 +7,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type LinkRepository interface {
-	Create(ctx context.Context, link LinkModel) error
+	Create(ctx context.Context, link LinkModel) (pgtype.UUID, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
 }
 
@@ -24,26 +25,31 @@ func NewLinkRepository(db *pgx.Conn) LinkRepository {
 	}
 }
 
-func (r *linkRepository) Create(ctx context.Context, link LinkModel) error {
+func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUID, error) {
 	sql := `INSERT INTO links (shortId, origin, creationDate, lastAccessDate)
-			VALUES ($1, $2, $3, $4);`
+			VALUES ($1, $2, $3, $4)
+			RETURNING id;`
 
-	_, err := r.db.Exec(
+	var id pgtype.UUID
+	err := r.db.QueryRow(
 		ctx,
 		sql,
 		link.ShortId,
 		link.Origin,
 		link.CreationDate,
-		link.LastAccessDate)
+		link.LastAccessDate,
+	).Scan(&id)
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" {
-			return errors2.ErrDuplicateShortId
+			return pgtype.UUID{}, errors2.ErrDuplicateShortId
 		}
+	} else if err != nil {
+		return pgtype.UUID{}, err
 	}
 
-	return err
+	return id, nil
 }
 
 func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {

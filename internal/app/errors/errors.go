@@ -6,6 +6,7 @@ import (
 )
 
 type ErrorResponse struct {
+	RequestId string    `json:"reqId"`
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
 }
