@@ -13,6 +13,7 @@ import (
 type LinkRepository interface {
 	Create(ctx context.Context, link LinkModel) (pgtype.UUID, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
+	Edit(ctx context.Context, link LinkModel) error
 }
 
 type linkRepository struct {
@@ -53,7 +54,7 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 }
 
 func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
-	sql := `SELECT (id, shortId, origin, creationDate, lastAccessAt) FROM links
+	sql := `SELECT id, shortId, origin, creationDate, lastAccessDate FROM links
 			WHERE shortId = $1`
 
 	row := r.db.QueryRow(ctx, sql, shortId)
@@ -73,4 +74,19 @@ func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*Li
 	}
 
 	return &link, nil
+}
+
+func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
+	sql := `UPDATE links
+			SET origin = $1, lastAccessDate = $2
+			WHERE id = $3`
+
+	tag, err := r.db.Exec(ctx, sql, link.Origin, link.LastAccessDate, link.Id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrLinkNotFound
+	}
+	return nil
 }

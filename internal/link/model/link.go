@@ -7,9 +7,9 @@ import (
 )
 
 type Link struct {
-	Id             pgtype.UUID
-	ShortId        string    `validate:"required,len=8"`
-	Origin         string    `validate:"required,url,max=4096"`
-	CreationDate   time.Time `validate:"required"`
-	LastAccessDate *time.Time
+	Id             pgtype.UUID `json:"id"`
+	ShortId        string      `validate:"required,len=8" json:"shortId"`
+	Origin         string      `validate:"required,url,max=4096" json:"origin"`
+	CreationDate   time.Time   `validate:"required" json:"creationDate"`
+	LastAccessDate *time.Time  `json:"lastAccessDate"`
 }

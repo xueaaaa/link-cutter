@@ -13,3 +13,4 @@ type ErrorResponse struct {
 
 var ErrDuplicateShortId = errors.New("link with this shortId already exists")
 var ErrShortIdLimitExceeded = errors.New("shortId generation limit exceeded")
+var ErrLinkNotFound = errors.New("link not found")
