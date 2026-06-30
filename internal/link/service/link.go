@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type LinkService interface {
 	Create(ctx context.Context, origin string) (model.Link, error)
 	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
 	Edit(ctx context.Context, link model.Link) error
+	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
 type linkService struct {
@@ -98,4 +100,8 @@ func (s *linkService) Edit(ctx context.Context, link model.Link) error {
 		LastAccessDate: link.LastAccessDate,
 	}
 	return s.repo.Edit(ctx, lm)
+}
+
+func (s *linkService) Delete(ctx context.Context, id pgtype.UUID) error {
+	return s.repo.Delete(ctx, id)
 }

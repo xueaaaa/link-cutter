@@ -173,3 +173,62 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }
+
+func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := r.PathValue("shortId")
+
+	link, err := h.service.FindByShortId(ctx, id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+
+		if errors.Is(err, errors2.ErrLinkNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
+		return
+	}
+
+	err = h.service.Delete(ctx, link.Id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+
+		if errors.Is(err, errors2.ErrLinkNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	h.logger.Info("successful link delete",
+		zap.String("shortId", link.Id.String()),
+		zap.String("req_id", util.GetRequestId(r)),
+	)
+}
