@@ -66,6 +66,10 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 		return model.Link{}, err
 	}
 
+	if lm == nil {
+		return model.Link{}, errors2.ErrLinkNotFound
+	}
+
 	link := model.Link{
 		Id:             lm.Id,
 		ShortId:        lm.ShortId,

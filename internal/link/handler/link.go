@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	errors2 "link-cutter/internal/app/errors"
 	"link-cutter/internal/app/util"
 	"link-cutter/internal/link/service"
 	"net/http"
@@ -68,12 +70,22 @@ func (h *LinkHandler) Go(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
-		util.WriteError(
-			w,
-			http.StatusInternalServerError,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+
+		if errors.Is(err, errors2.ErrLinkNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
 		return
 	}
 
