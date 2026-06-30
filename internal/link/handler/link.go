@@ -40,7 +40,7 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.service.Create(ctx, createDto.Origin)
+	created, err := h.service.Create(ctx, createDto.Origin)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -55,10 +55,31 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.logger.Info("link created",
-		zap.String("id", id.String()),
+		zap.String("id", created.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
+
+	data, err := json.Marshal(created)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusInternalServerError,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
+	_, err = w.Write(data)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+	}
 }
 
 func (h *LinkHandler) Go(w http.ResponseWriter, r *http.Request) {
