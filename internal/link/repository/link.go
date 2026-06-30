@@ -14,6 +14,7 @@ type LinkRepository interface {
 	Create(ctx context.Context, link LinkModel) (pgtype.UUID, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
 	Edit(ctx context.Context, link LinkModel) error
+	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
 type linkRepository struct {
@@ -88,5 +89,16 @@ func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
 	if tag.RowsAffected() == 0 {
 		return errors2.ErrLinkNotFound
 	}
+	return nil
+}
+
+func (r *linkRepository) Delete(ctx context.Context, id pgtype.UUID) error {
+	sql := `DELETE FROM links WHERE id = $1`
+
+	tag, err := r.db.Exec(ctx, sql, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 { return errors2.ErrLinkNotFound }
 	return nil
 }

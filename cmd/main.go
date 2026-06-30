@@ -49,6 +49,8 @@ func main() {
 	r.Get("/{shortId}", linkHandler.Go)
 	r.Route("/link", func(r chi.Router) {
 		r.Post("/", linkHandler.Create)
+		r.Patch("/", linkHandler.Edit)
+		r.Delete("/{shortId}", linkHandler.Delete)
 	})
 
 	if err := http.ListenAndServe(":"+cfg.RunPort, r); !errors.Is(err, http.ErrServerClosed) {
