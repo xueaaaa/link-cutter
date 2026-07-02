@@ -25,7 +25,9 @@ type PostgresConfig struct {
 	// Port on which Postgres is running (e.g. 5432)
 	Port string `yaml:"port"`
 	// Database name (e.g. link cutter)
-	DB string `yaml:"db"`
+	DB       string `yaml:"db"`
+	MaxConns int32  `yaml:"max_conns"`
+	MinConns int32  `yaml:"min_conns"`
 }
 
 // Load data from the Yaml config to the specified path in the format "/path/to/file.yaml"

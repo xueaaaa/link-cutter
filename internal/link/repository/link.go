@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type LinkRepository interface {
@@ -18,10 +19,10 @@ type LinkRepository interface {
 }
 
 type linkRepository struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func NewLinkRepository(db *pgx.Conn) LinkRepository {
+func NewLinkRepository(db *pgxpool.Pool) LinkRepository {
 	return &linkRepository{
 		db: db,
 	}
@@ -99,6 +100,8 @@ func (r *linkRepository) Delete(ctx context.Context, id pgtype.UUID) error {
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 { return errors2.ErrLinkNotFound }
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrLinkNotFound
+	}
 	return nil
 }
