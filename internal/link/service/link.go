@@ -73,16 +73,7 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 		return model.Link{}, errors2.ErrLinkNotFound
 	}
 
-	now := time.Now().UTC()
-	lm.LastAccessDate = &now
-	link := model.Link{
-		Id:             lm.Id,
-		ShortId:        lm.ShortId,
-		Origin:         lm.Origin,
-		CreationDate:   lm.CreationDate,
-		LastAccessDate: lm.LastAccessDate,
-	}
-
+	link := model.Link(*lm)
 	err = s.Edit(ctx, link)
 	if err != nil {
 		return model.Link{}, err
@@ -92,6 +83,9 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 }
 
 func (s *linkService) Edit(ctx context.Context, link model.Link) error {
+	now := time.Now().UTC()
+	link.LastAccessDate = &now
+
 	lm := repository.LinkModel{
 		Id:             link.Id,
 		ShortId:        link.ShortId,
