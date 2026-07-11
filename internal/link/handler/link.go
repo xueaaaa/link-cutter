@@ -176,9 +176,9 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 
 func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	id := r.PathValue("shortId")
+	shortId := r.PathValue("shortId")
 
-	link, err := h.service.FindByShortId(ctx, id)
+	link, err := h.service.FindByShortId(ctx, shortId)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
