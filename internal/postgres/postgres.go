@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"link-cutter/internal/app/config"
+	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(ctx context.Context, cfg config.PostgresConfig) (*pgx.Conn, error) {
+func Connect(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
 	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s",
 		cfg.User,
@@ -18,7 +19,16 @@ func Connect(ctx context.Context, cfg config.PostgresConfig) (*pgx.Conn, error) 
 		cfg.DB,
 	)
 
-	conn, err := pgx.Connect(ctx, connString)
+	pgxCfg, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, err
+	}
+	pgxCfg.MaxConns = cfg.MaxConns
+	pgxCfg.MinConns = cfg.MinConns
+	pgxCfg.MaxConnLifetime = 30 * time.Minute
+	pgxCfg.MaxConnIdleTime = 5 * time.Minute
+
+	conn, err := pgxpool.NewWithConfig(ctx, pgxCfg)
 	if err != nil {
 		return nil, err
 	}

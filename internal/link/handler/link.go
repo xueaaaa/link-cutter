@@ -151,7 +151,7 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, errors2.ErrLinkNotFound) {
 			util.WriteError(
 				w,
-				http.StatusBadRequest,
+				http.StatusNotFound,
 				err.Error(),
 				util.GetRequestId(r),
 			)
@@ -169,16 +169,16 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	h.logger.Info("successful link update",
-		zap.String("shortId", link.Id.String()),
+		zap.String("id", link.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }
 
 func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	id := r.PathValue("shortId")
+	shortId := r.PathValue("shortId")
 
-	link, err := h.service.FindByShortId(ctx, id)
+	link, err := h.service.FindByShortId(ctx, shortId)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -228,7 +228,7 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 	h.logger.Info("successful link delete",
-		zap.String("shortId", link.Id.String()),
+		zap.String("id", link.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }

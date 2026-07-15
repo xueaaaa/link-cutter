@@ -7,3 +7,4 @@ CREATE TABLE links (
     creationDate TIMESTAMP NOT NULL,
     lastAccessDate TIMESTAMP
 );
+
