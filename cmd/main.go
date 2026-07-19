@@ -47,7 +47,7 @@ func main() {
 	linkHandler := handler.NewLinkHandler(linkService, logger)
 
 	userRepo := repository2.NewUserRepository(dbConn)
-	userService := service2.NewUserService(userRepo)
+	userService := service2.NewUserService(userRepo, cfg)
 	userHandler := handler2.NewUserHandler(userService, logger)
 
 	r.Use(middleware2.RequestID)
@@ -61,6 +61,7 @@ func main() {
 	})
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", userHandler.Create)
+		r.Get("/", userHandler.Auth)
 	})
 
 	if err := http.ListenAndServe(":"+cfg.RunPort, r); !errors.Is(err, http.ErrServerClosed) {

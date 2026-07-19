@@ -9,6 +9,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user UserModel) (pgtype.UUID, error)
+	GetByEmail(ctx context.Context, email string) (UserModel, error)
 }
 
 type userRepository struct {
@@ -41,4 +42,23 @@ func (r *userRepository) Create(ctx context.Context, user UserModel) (pgtype.UUI
 		return pgtype.UUID{}, err
 	}
 	return id, nil
+}
+
+func (r *userRepository) GetByEmail(ctx context.Context, email string) (UserModel, error) {
+	sql := `SELECT id, email, username, password, creationDate, lastAccessDate FROM users
+			WHERE email = $1`
+
+	var user UserModel
+	row := r.db.QueryRow(ctx, sql, email)
+	err := row.Scan(
+		&user.Id,
+		&user.Email,
+		&user.Password,
+		&user.CreationDate,
+		&user.LastAccessDate,
+	)
+	if err != nil {
+		return UserModel{}, err
+	}
+	return user, nil
 }
