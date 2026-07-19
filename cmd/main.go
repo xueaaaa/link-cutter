@@ -10,6 +10,9 @@ import (
 	"link-cutter/internal/link/repository"
 	"link-cutter/internal/link/service"
 	"link-cutter/internal/postgres"
+	handler2 "link-cutter/internal/user/handler"
+	repository2 "link-cutter/internal/user/repository"
+	service2 "link-cutter/internal/user/service"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -43,6 +46,10 @@ func main() {
 	linkService := service.NewLinkService(linkRepo)
 	linkHandler := handler.NewLinkHandler(linkService, logger)
 
+	userRepo := repository2.NewUserRepository(dbConn)
+	userService := service2.NewUserService(userRepo)
+	userHandler := handler2.NewUserHandler(userService, logger)
+
 	r.Use(middleware2.RequestID)
 	r.Use(middleware.Logging(logger))
 
@@ -51,6 +58,9 @@ func main() {
 		r.Post("/", linkHandler.Create)
 		r.Patch("/", linkHandler.Edit)
 		r.Delete("/{shortId}", linkHandler.Delete)
+	})
+	r.Route("/user", func(r chi.Router) {
+		r.Post("/", userHandler.Create)
 	})
 
 	if err := http.ListenAndServe(":"+cfg.RunPort, r); !errors.Is(err, http.ErrServerClosed) {
