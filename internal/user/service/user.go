@@ -69,5 +69,12 @@ func (s *userSerivce) Auth(ctx context.Context, email, password string) (string,
 		return "", err
 	}
 
+	t := time.Now()
+	got.LastAccessDate = &t
+	err = s.repo.Edit(ctx, got)
+	if err != nil {
+		return "", err
+	}
+
 	return util.IssueToken(s.config.JwtSigningKey, user)
 }
