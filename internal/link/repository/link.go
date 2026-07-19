@@ -29,14 +29,15 @@ func NewLinkRepository(db *pgxpool.Pool) LinkRepository {
 }
 
 func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUID, error) {
-	sql := `INSERT INTO links (shortId, origin, creationDate, lastAccessDate)
-			VALUES ($1, $2, $3, $4)
+	sql := `INSERT INTO links (userId, shortId, origin, creationDate, lastAccessDate)
+			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id;`
 
 	var id pgtype.UUID
 	err := r.db.QueryRow(
 		ctx,
 		sql,
+		link.UserId,
 		link.ShortId,
 		link.Origin,
 		link.CreationDate,
@@ -56,13 +57,14 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 }
 
 func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
-	sql := `SELECT id, shortId, origin, creationDate, lastAccessDate FROM links
+	sql := `SELECT id, userId, shortId, origin, creationDate, lastAccessDate FROM links
 			WHERE shortId = $1`
 
 	row := r.db.QueryRow(ctx, sql, shortId)
 	var link LinkModel
 	err := row.Scan(
 		&link.Id,
+		&link.UserId,
 		&link.ShortId,
 		&link.Origin,
 		&link.CreationDate,

@@ -53,6 +53,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (UserMode
 	err := row.Scan(
 		&user.Id,
 		&user.Email,
+		&user.Username,
 		&user.Password,
 		&user.CreationDate,
 		&user.LastAccessDate,

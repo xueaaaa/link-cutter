@@ -18,6 +18,6 @@ func IssueToken(key string, user model.User) (string, error) {
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	return token.SignedString(key)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(key))
 }
