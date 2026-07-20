@@ -144,6 +144,21 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, _ := middleware.ClaimsFromContext(ctx)
+	err = h.service.EnsureRights(ctx, editDto.Id, claims.UserId)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
 	link := model.Link{
 		Id:     editDto.Id,
 		Origin: editDto.Origin,
@@ -205,6 +220,21 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 				util.GetRequestId(r),
 			)
 		}
+		return
+	}
+
+	claims, _ := middleware.ClaimsFromContext(ctx)
+	err = h.service.EnsureRights(ctx, link.Id, claims.UserId)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
 		return
 	}
 

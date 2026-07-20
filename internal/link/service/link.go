@@ -15,9 +15,11 @@ import (
 
 type LinkService interface {
 	Create(ctx context.Context, link model.Link) (model.Link, error)
+	FindById(ctx context.Context, id pgtype.UUID) (model.Link, error)
 	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
 	Edit(ctx context.Context, link model.Link) error
 	Delete(ctx context.Context, id pgtype.UUID) error
+	EnsureRights(ctx context.Context, linkId pgtype.UUID, userId pgtype.UUID) error
 }
 
 type linkService struct {
@@ -64,8 +66,9 @@ func (s *linkService) Create(ctx context.Context, link model.Link) (model.Link, 
 	return model.Link{}, errors2.ErrShortIdLimitExceeded
 }
 
-func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.Link, error) {
-	lm, err := s.repo.FindByShortId(ctx, shortId)
+func (s *linkService) findBy(ctx context.Context, find func() (*repository.LinkModel, error)) (model.Link, error) {
+	lm, err := find()
+
 	if err != nil {
 		return model.Link{}, err
 	}
@@ -81,6 +84,18 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 	}
 
 	return link, nil
+}
+
+func (s *linkService) FindById(ctx context.Context, id pgtype.UUID) (model.Link, error) {
+	return s.findBy(ctx, func() (*repository.LinkModel, error) {
+		return s.repo.FindById(ctx, id)
+	})
+}
+
+func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.Link, error) {
+	return s.findBy(ctx, func() (*repository.LinkModel, error) {
+		return s.repo.FindByShortId(ctx, shortId)
+	})
 }
 
 func (s *linkService) Edit(ctx context.Context, link model.Link) error {
@@ -99,4 +114,15 @@ func (s *linkService) Edit(ctx context.Context, link model.Link) error {
 
 func (s *linkService) Delete(ctx context.Context, id pgtype.UUID) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *linkService) EnsureRights(ctx context.Context, linkId, userId pgtype.UUID) error {
+	link, err := s.FindById(ctx, linkId)
+	if err != nil {
+		return err
+	}
+	if link.UserId != userId {
+		return errors2.ErrNotEnoughRights
+	}
+	return nil
 }

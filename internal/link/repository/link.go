@@ -13,6 +13,7 @@ import (
 
 type LinkRepository interface {
 	Create(ctx context.Context, link LinkModel) (pgtype.UUID, error)
+	FindById(ctx context.Context, id pgtype.UUID) (*LinkModel, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
 	Edit(ctx context.Context, link LinkModel) error
 	Delete(ctx context.Context, id pgtype.UUID) error
@@ -57,11 +58,11 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 	return id, nil
 }
 
-func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
+func (r *linkRepository) findBy(ctx context.Context, fieldName string, key any) (*LinkModel, error) {
 	sql := `SELECT id, userId, shortId, origin, creationDate, lastAccessDate FROM links
-			WHERE shortId = $1`
+			WHERE ` + fieldName + `= $1`
 
-	row := r.db.QueryRow(ctx, sql, shortId)
+	row := r.db.QueryRow(ctx, sql, key)
 	var link LinkModel
 	err := row.Scan(
 		&link.Id,
@@ -79,6 +80,14 @@ func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*Li
 	}
 
 	return &link, nil
+}
+
+func (r *linkRepository) FindById(ctx context.Context, id pgtype.UUID) (*LinkModel, error) {
+	return r.findBy(ctx, "id", id.String())
+}
+
+func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
+	return r.findBy(ctx, "shortId", shortId)
 }
 
 func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
