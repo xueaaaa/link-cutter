@@ -33,7 +33,7 @@ func parseToken(key string, r *http.Request) (*jwt.Token, model.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors2.ErrUnexpectedSigningMethod
 		}
-		return key, nil
+		return []byte(key), nil
 	})
 	if err != nil {
 		return nil, model.Claims{}, err
@@ -91,4 +91,9 @@ func OptionalAuth(key string, logger *zap.Logger) func(handler http.Handler) htt
 			}
 		})
 	}
+}
+
+func ClaimsFromContext(ctx context.Context) (model.Claims, bool) {
+	claims, ok := ctx.Value(userContextKey).(model.Claims)
+	return claims, ok
 }

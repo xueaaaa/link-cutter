@@ -55,7 +55,10 @@ func main() {
 
 	r.Get("/{shortId}", linkHandler.Go)
 	r.Route("/link", func(r chi.Router) {
-		r.Post("/", linkHandler.Create)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.OptionalAuth(cfg.JwtSigningKey, logger))
+			r.Post("/", linkHandler.Create)
+		})
 		r.Patch("/", linkHandler.Edit)
 		r.Delete("/{shortId}", linkHandler.Delete)
 	})

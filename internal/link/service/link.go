@@ -14,7 +14,7 @@ import (
 )
 
 type LinkService interface {
-	Create(ctx context.Context, origin string) (model.Link, error)
+	Create(ctx context.Context, link model.Link) (model.Link, error)
 	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
 	Edit(ctx context.Context, link model.Link) error
 	Delete(ctx context.Context, id pgtype.UUID) error
@@ -32,9 +32,10 @@ func NewLinkService(repo repository.LinkRepository) LinkService {
 	}
 }
 
-func (s *linkService) Create(ctx context.Context, origin string) (model.Link, error) {
-	link := model.Link{
-		Origin:       origin,
+func (s *linkService) Create(ctx context.Context, link model.Link) (model.Link, error) {
+	link = model.Link{
+		UserId:       link.UserId,
+		Origin:       link.Origin,
 		CreationDate: time.Now(),
 	}
 

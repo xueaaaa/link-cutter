@@ -49,6 +49,7 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 		if pgErr.Code == "23505" {
 			return pgtype.UUID{}, errors2.ErrDuplicateShortId
 		}
+		return pgtype.UUID{}, err
 	} else if err != nil {
 		return pgtype.UUID{}, err
 	}
