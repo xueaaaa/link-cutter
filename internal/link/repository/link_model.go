@@ -8,6 +8,7 @@ import (
 
 type LinkModel struct {
 	Id             pgtype.UUID
+	UserId         pgtype.UUID
 	ShortId        string
 	Origin         string
 	CreationDate   time.Time

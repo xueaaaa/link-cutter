@@ -63,3 +63,44 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }
+
+func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var authDTO AuthUserDTO
+	err := json.NewDecoder(r.Body).Decode(&authDTO)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	token, err := h.service.Auth(ctx, authDTO.Email, authDTO.Password)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusUnauthorized,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte(token))
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		return
+	}
+}

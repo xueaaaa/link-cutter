@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	errors2 "link-cutter/internal/app/errors"
+	"link-cutter/internal/app/middleware"
 	"link-cutter/internal/app/util"
 	"link-cutter/internal/link/model"
 	"link-cutter/internal/link/service"
@@ -41,7 +42,12 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.service.Create(ctx, createDto.Origin)
+	claims, _ := middleware.ClaimsFromContext(r.Context())
+	link := model.Link{
+		UserId: claims.UserId,
+		Origin: createDto.Origin,
+	}
+	created, err := h.service.Create(ctx, link)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
