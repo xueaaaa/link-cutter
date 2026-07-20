@@ -11,7 +11,7 @@ import (
 type Config struct {
 	// Port on which the server should run (e.g. 8080)
 	RunPort string `yaml:"run_port"`
-	// Private key for issuing JWT tokens
+	// Signing secret for issuing JWT tokens (HS256)
 	JwtSigningKey string `yaml:"jwt_signing_key"`
 	// Postgres settings
 	Postgres PostgresConfig `yaml:"postgres"`

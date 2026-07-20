@@ -56,6 +56,7 @@ func Auth(key string, logger *zap.Logger) func(handler http.Handler) http.Handle
 					err.Error(),
 					util.GetRequestId(r),
 				)
+				return
 			}
 
 			ctx := context.WithValue(r.Context(), userContextKey, claims)
