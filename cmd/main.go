@@ -71,6 +71,7 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(cfg.JwtSigningKey, logger))
 			r.Patch("/", userHandler.Edit)
+			r.Delete("/{id}", userHandler.Delete)
 		})
 	})
 

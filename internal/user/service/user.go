@@ -21,6 +21,7 @@ type UserService interface {
 	FindById(ctx context.Context, id pgtype.UUID) (model.User, error)
 	Edit(ctx context.Context, user model.User) error
 	EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, expectedUserId pgtype.UUID) error
+	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
 type userSerivce struct {
@@ -147,4 +148,8 @@ func (s *userSerivce) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, e
 		return errors2.ErrNotEnoughRights
 	}
 	return nil
+}
+
+func (s *userSerivce) Delete(ctx context.Context, id pgtype.UUID) error {
+	return s.repo.Delete(ctx, id)
 }

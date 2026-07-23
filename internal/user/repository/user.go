@@ -18,6 +18,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*UserModel, error)
 	Edit(ctx context.Context, user UserModel) error
 	EditLastAccess(ctx context.Context, userId pgtype.UUID) error
+	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
 type userRepository struct {
@@ -86,8 +87,6 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*UserMo
 }
 
 func (r *userRepository) Edit(ctx context.Context, user UserModel) error {
-	r.logger.Debug("", zap.Any("", user))
-
 	sql := `UPDATE users
 			SET username = COALESCE(NULLIF($1, ''), username),
 				password = COALESCE(NULLIF($2, ''), password)
@@ -118,6 +117,19 @@ func (r *userRepository) EditLastAccess(ctx context.Context, id pgtype.UUID) err
 		id,
 	)
 
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) Delete(ctx context.Context, id pgtype.UUID) error {
+	sql := `DELETE FROM users WHERE id = $1`
+
+	tag, err := r.db.Exec(ctx, sql, id)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"link-cutter/internal/user/service"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 )
 
@@ -61,6 +62,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	h.logger.Info("user created",
 		zap.String("id", id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
@@ -171,6 +173,95 @@ func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	h.logger.Info("successful user update",
+		zap.String("id", user.Id.String()),
+		zap.String("req_id", util.GetRequestId(r)),
+	)
+}
+
+func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rawId := r.PathValue("id")
+
+	var id pgtype.UUID
+	err := id.Scan(rawId)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	user, err := h.service.FindById(ctx, id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+
+		if errors.Is(err, errors2.ErrUserNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
+		return
+	}
+
+	claims, _ := middleware.ClaimsFromContext(ctx)
+	err = h.service.EnsureRights(ctx, claims.UserId, user.Id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	err = h.service.Delete(ctx, user.Id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+
+		if errors.Is(err, errors2.ErrUserNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	h.logger.Info("successful user delete",
 		zap.String("id", user.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
