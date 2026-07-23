@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	errors2 "link-cutter/internal/app/errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,6 +17,7 @@ type LinkRepository interface {
 	FindById(ctx context.Context, id pgtype.UUID) (*LinkModel, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
 	Edit(ctx context.Context, link LinkModel) error
+	EditLastAccess(ctx context.Context, linkId pgtype.UUID) error
 	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
@@ -92,11 +94,31 @@ func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*Li
 
 func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
 	sql := `UPDATE links
-			SET origin = COALESCE(NULLIF($1, ''), origin),
-				lastAccessDate = $2
-			WHERE id = $3`
+			SET origin = COALESCE(NULLIF($1, ''), origin)
+			WHERE id = $2`
 
-	tag, err := r.db.Exec(ctx, sql, link.Origin, link.LastAccessDate, link.Id)
+	tag, err := r.db.Exec(ctx, sql,
+		link.Origin,
+		link.Id,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrLinkNotFound
+	}
+	return nil
+}
+
+func (r *linkRepository) EditLastAccess(ctx context.Context, id pgtype.UUID) error {
+	sql := `UPDATE links
+			SET lastAccessDate = $1
+			WHERE id = $2`
+
+	tag, err := r.db.Exec(ctx, sql,
+		time.Now().UTC(),
+		id,
+	)
 	if err != nil {
 		return err
 	}
