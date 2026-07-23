@@ -46,8 +46,8 @@ func main() {
 	linkService := service.NewLinkService(linkRepo)
 	linkHandler := handler.NewLinkHandler(linkService, logger)
 
-	userRepo := repository2.NewUserRepository(dbConn)
-	userService := service2.NewUserService(userRepo, cfg)
+	userRepo := repository2.NewUserRepository(dbConn, logger)
+	userService := service2.NewUserService(userRepo, cfg, logger)
 	userHandler := handler2.NewUserHandler(userService, logger)
 
 	r.Use(middleware2.RequestID)
@@ -68,6 +68,10 @@ func main() {
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", userHandler.Create)
 		r.Get("/", userHandler.Auth)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(cfg.JwtSigningKey, logger))
+			r.Patch("/", userHandler.Edit)
+		})
 	})
 
 	if err := http.ListenAndServe(":"+cfg.RunPort, r); !errors.Is(err, http.ErrServerClosed) {

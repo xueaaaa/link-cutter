@@ -2,25 +2,33 @@ package repository
 
 import (
 	"context"
-	"link-cutter/internal/app/errors"
+	"errors"
+	errors2 "link-cutter/internal/app/errors"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, user UserModel) (pgtype.UUID, error)
-	GetByEmail(ctx context.Context, email string) (UserModel, error)
+	FindById(ctx context.Context, id pgtype.UUID) (*UserModel, error)
+	FindByEmail(ctx context.Context, email string) (*UserModel, error)
 	Edit(ctx context.Context, user UserModel) error
+	EditLastAccess(ctx context.Context, userId pgtype.UUID) error
 }
 
 type userRepository struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger *zap.Logger
 }
 
-func NewUserRepository(db *pgxpool.Pool) UserRepository {
+func NewUserRepository(db *pgxpool.Pool, logger *zap.Logger) UserRepository {
 	return &userRepository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -46,12 +54,12 @@ func (r *userRepository) Create(ctx context.Context, user UserModel) (pgtype.UUI
 	return id, nil
 }
 
-func (r *userRepository) GetByEmail(ctx context.Context, email string) (UserModel, error) {
+func (r *userRepository) findBy(ctx context.Context, fieldName string, key any) (*UserModel, error) {
 	sql := `SELECT id, email, username, password, creationDate, lastAccessDate FROM users
-			WHERE email = $1`
+			WHERE ` + fieldName + ` = $1`
 
 	var user UserModel
-	row := r.db.QueryRow(ctx, sql, email)
+	row := r.db.QueryRow(ctx, sql, key)
 	err := row.Scan(
 		&user.Id,
 		&user.Email,
@@ -61,21 +69,33 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (UserMode
 		&user.LastAccessDate,
 	)
 	if err != nil {
-		return UserModel{}, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return user, nil
+	return &user, nil
+}
+
+func (r *userRepository) FindById(ctx context.Context, id pgtype.UUID) (*UserModel, error) {
+	return r.findBy(ctx, "id", id.String())
+}
+
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*UserModel, error) {
+	return r.findBy(ctx, "email", email)
 }
 
 func (r *userRepository) Edit(ctx context.Context, user UserModel) error {
+	r.logger.Debug("", zap.Any("", user))
+
 	sql := `UPDATE users
-			SET email = $1, username = $2, password = $3, lastAccessDate = $4
-			WHERE id = $5`
+			SET username = COALESCE(NULLIF($1, ''), username),
+				password = COALESCE(NULLIF($2, ''), password)
+			WHERE id = $3`
 
 	tag, err := r.db.Exec(ctx, sql,
-		user.Email,
 		user.Username,
 		user.Password,
-		user.LastAccessDate,
 		user.Id,
 	)
 
@@ -83,7 +103,26 @@ func (r *userRepository) Edit(ctx context.Context, user UserModel) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return errors.ErrUserNotFound
+		return errors2.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) EditLastAccess(ctx context.Context, id pgtype.UUID) error {
+	sql := `UPDATE users
+			SET lastAccessDate = $1
+			WHERE id = $2`
+
+	tag, err := r.db.Exec(ctx, sql,
+		time.Now().UTC(),
+		id,
+	)
+
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrUserNotFound
 	}
 	return nil
 }

@@ -2,6 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	errors2 "link-cutter/internal/app/errors"
+	"link-cutter/internal/app/middleware"
 	"link-cutter/internal/app/util"
 	"link-cutter/internal/user/model"
 	"link-cutter/internal/user/service"
@@ -103,4 +106,72 @@ func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+}
+
+func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var editDto EditUserDTO
+	err := json.NewDecoder(r.Body).Decode(&editDto)
+
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	claims, _ := middleware.ClaimsFromContext(ctx)
+	err = h.service.EnsureRights(ctx, claims.UserId, editDto.Id)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	user := model.User{
+		Id:       editDto.Id,
+		Username: editDto.Username,
+		Password: editDto.Password,
+	}
+	err = h.service.Edit(ctx, user)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		if errors.Is(err, errors2.ErrUserNotFound) {
+			util.WriteError(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		} else {
+			util.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err.Error(),
+				util.GetRequestId(r),
+			)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	h.logger.Info("successful user update",
+		zap.String("id", user.Id.String()),
+		zap.String("req_id", util.GetRequestId(r)),
+	)
 }

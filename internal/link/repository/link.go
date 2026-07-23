@@ -92,7 +92,8 @@ func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*Li
 
 func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
 	sql := `UPDATE links
-			SET origin = $1, lastAccessDate = $2
+			SET origin = COALESCE(NULLIF($1, ''), origin),
+				lastAccessDate = $2
 			WHERE id = $3`
 
 	tag, err := r.db.Exec(ctx, sql, link.Origin, link.LastAccessDate, link.Id)
