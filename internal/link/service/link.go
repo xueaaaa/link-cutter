@@ -14,10 +14,12 @@ import (
 )
 
 type LinkService interface {
-	Create(ctx context.Context, origin string) (model.Link, error)
+	Create(ctx context.Context, link model.Link) (model.Link, error)
+	FindById(ctx context.Context, id pgtype.UUID) (model.Link, error)
 	FindByShortId(ctx context.Context, shortId string) (model.Link, error)
 	Edit(ctx context.Context, link model.Link) error
 	Delete(ctx context.Context, id pgtype.UUID) error
+	EnsureRights(ctx context.Context, linkId pgtype.UUID, userId pgtype.UUID) error
 }
 
 type linkService struct {
@@ -32,9 +34,10 @@ func NewLinkService(repo repository.LinkRepository) LinkService {
 	}
 }
 
-func (s *linkService) Create(ctx context.Context, origin string) (model.Link, error) {
-	link := model.Link{
-		Origin:       origin,
+func (s *linkService) Create(ctx context.Context, link model.Link) (model.Link, error) {
+	link = model.Link{
+		UserId:       link.UserId,
+		Origin:       link.Origin,
 		CreationDate: time.Now(),
 	}
 
@@ -63,8 +66,9 @@ func (s *linkService) Create(ctx context.Context, origin string) (model.Link, er
 	return model.Link{}, errors2.ErrShortIdLimitExceeded
 }
 
-func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.Link, error) {
-	lm, err := s.repo.FindByShortId(ctx, shortId)
+func (s *linkService) findBy(ctx context.Context, find func() (*repository.LinkModel, error)) (model.Link, error) {
+	lm, err := find()
+
 	if err != nil {
 		return model.Link{}, err
 	}
@@ -74,7 +78,7 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 	}
 
 	link := model.Link(*lm)
-	err = s.Edit(ctx, link)
+	err = s.repo.EditLastAccess(ctx, link.Id)
 	if err != nil {
 		return model.Link{}, err
 	}
@@ -82,20 +86,39 @@ func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.
 	return link, nil
 }
 
-func (s *linkService) Edit(ctx context.Context, link model.Link) error {
-	now := time.Now().UTC()
-	link.LastAccessDate = &now
+func (s *linkService) FindById(ctx context.Context, id pgtype.UUID) (model.Link, error) {
+	return s.findBy(ctx, func() (*repository.LinkModel, error) {
+		return s.repo.FindById(ctx, id)
+	})
+}
 
+func (s *linkService) FindByShortId(ctx context.Context, shortId string) (model.Link, error) {
+	return s.findBy(ctx, func() (*repository.LinkModel, error) {
+		return s.repo.FindByShortId(ctx, shortId)
+	})
+}
+
+func (s *linkService) Edit(ctx context.Context, link model.Link) error {
 	lm := repository.LinkModel{
-		Id:             link.Id,
-		ShortId:        link.ShortId,
-		Origin:         link.Origin,
-		CreationDate:   link.CreationDate,
-		LastAccessDate: link.LastAccessDate,
+		Id:           link.Id,
+		ShortId:      link.ShortId,
+		Origin:       link.Origin,
+		CreationDate: link.CreationDate,
 	}
 	return s.repo.Edit(ctx, lm)
 }
 
 func (s *linkService) Delete(ctx context.Context, id pgtype.UUID) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *linkService) EnsureRights(ctx context.Context, linkId, userId pgtype.UUID) error {
+	link, err := s.FindById(ctx, linkId)
+	if err != nil {
+		return err
+	}
+	if link.UserId != userId {
+		return errors2.ErrNotEnoughRights
+	}
+	return nil
 }

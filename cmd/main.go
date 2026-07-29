@@ -10,6 +10,9 @@ import (
 	"link-cutter/internal/link/repository"
 	"link-cutter/internal/link/service"
 	"link-cutter/internal/postgres"
+	handler2 "link-cutter/internal/user/handler"
+	repository2 "link-cutter/internal/user/repository"
+	service2 "link-cutter/internal/user/service"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -43,14 +46,33 @@ func main() {
 	linkService := service.NewLinkService(linkRepo)
 	linkHandler := handler.NewLinkHandler(linkService, logger)
 
+	userRepo := repository2.NewUserRepository(dbConn, logger)
+	userService := service2.NewUserService(userRepo, cfg, logger)
+	userHandler := handler2.NewUserHandler(userService, logger)
+
 	r.Use(middleware2.RequestID)
 	r.Use(middleware.Logging(logger))
 
 	r.Get("/{shortId}", linkHandler.Go)
 	r.Route("/link", func(r chi.Router) {
-		r.Post("/", linkHandler.Create)
-		r.Patch("/", linkHandler.Edit)
-		r.Delete("/{shortId}", linkHandler.Delete)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.OptionalAuth(cfg.JwtSigningKey, logger))
+			r.Post("/", linkHandler.Create)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(cfg.JwtSigningKey, logger))
+			r.Patch("/", linkHandler.Edit)
+			r.Delete("/{shortId}", linkHandler.Delete)
+		})
+	})
+	r.Route("/user", func(r chi.Router) {
+		r.Post("/", userHandler.Create)
+		r.Post("/auth", userHandler.Auth)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(cfg.JwtSigningKey, logger))
+			r.Patch("/", userHandler.Edit)
+			r.Delete("/{id}", userHandler.Delete)
+		})
 	})
 
 	if err := http.ListenAndServe(":"+cfg.RunPort, r); !errors.Is(err, http.ErrServerClosed) {

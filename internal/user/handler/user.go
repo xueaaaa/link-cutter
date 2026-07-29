@@ -6,29 +6,30 @@ import (
 	errors2 "link-cutter/internal/app/errors"
 	"link-cutter/internal/app/middleware"
 	"link-cutter/internal/app/util"
-	"link-cutter/internal/link/model"
-	"link-cutter/internal/link/service"
+	"link-cutter/internal/user/model"
+	"link-cutter/internal/user/service"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 )
 
-type LinkHandler struct {
-	service service.LinkService
+type UserHandler struct {
+	service service.UserService
 	logger  *zap.Logger
 }
 
-func NewLinkHandler(service service.LinkService, logger *zap.Logger) *LinkHandler {
-	return &LinkHandler{
+func NewUserHandler(service service.UserService, logger *zap.Logger) *UserHandler {
+	return &UserHandler{
 		service: service,
 		logger:  logger,
 	}
 }
 
-func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	var createDto CreateLinkDTO
-	err := json.NewDecoder(r.Body).Decode(&createDto)
+	var createDTO CreateUserDTO
+	err := json.NewDecoder(r.Body).Decode(&createDTO)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -42,12 +43,12 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, _ := middleware.ClaimsFromContext(r.Context())
-	link := model.Link{
-		UserId: claims.UserId,
-		Origin: createDto.Origin,
+	user := model.User{
+		Email:    createDTO.Email,
+		Username: createDTO.Username,
+		Password: createDTO.Password,
 	}
-	created, err := h.service.Create(ctx, link)
+	id, err := h.service.Create(ctx, user)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -61,74 +62,57 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Info("link created",
-		zap.String("id", created.Id.String()),
+	w.WriteHeader(http.StatusOK)
+	h.logger.Info("user created",
+		zap.String("id", id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
+}
 
-	data, err := json.Marshal(created)
+func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var authDTO AuthUserDTO
+	err := json.NewDecoder(r.Body).Decode(&authDTO)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
 		util.WriteError(
 			w,
-			http.StatusInternalServerError,
+			http.StatusBadRequest,
 			err.Error(),
 			util.GetRequestId(r),
 		)
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(data)
+	token, err := h.service.Auth(ctx, authDTO.Email, authDTO.Password)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
-	}
-}
-
-func (h *LinkHandler) Go(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := r.PathValue("shortId")
-
-	link, err := h.service.FindByShortId(ctx, id)
-	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
+		util.WriteError(
+			w,
+			http.StatusUnauthorized,
+			err.Error(),
+			util.GetRequestId(r),
 		)
-
-		if errors.Is(err, errors2.ErrLinkNotFound) {
-			util.WriteError(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		} else {
-			util.WriteError(
-				w,
-				http.StatusInternalServerError,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		}
 		return
 	}
 
-	http.Redirect(w, r, link.Origin, http.StatusFound)
-
-	h.logger.Info("successful link redirect",
-		zap.String("shortId", id),
-		zap.String("req_id", util.GetRequestId(r)),
-	)
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte(token))
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		return
+	}
 }
 
-func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	var editDto EditLinkDTO
+	var editDto EditUserDTO
 	err := json.NewDecoder(r.Body).Decode(&editDto)
 
 	if err != nil {
@@ -145,7 +129,7 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
-	err = h.service.EnsureRights(ctx, editDto.Id, claims.UserId)
+	err = h.service.EnsureRights(ctx, claims.UserId, editDto.Id)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -159,17 +143,17 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	link := model.Link{
-		Id:     editDto.Id,
-		Origin: editDto.Origin,
+	user := model.User{
+		Id:       editDto.Id,
+		Username: editDto.Username,
+		Password: editDto.Password,
 	}
-	err = h.service.Edit(ctx, link)
+	err = h.service.Edit(ctx, user)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
-
-		if errors.Is(err, errors2.ErrLinkNotFound) {
+		if errors.Is(err, errors2.ErrUserNotFound) {
 			util.WriteError(
 				w,
 				http.StatusNotFound,
@@ -184,28 +168,42 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 				util.GetRequestId(r),
 			)
 		}
-
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	h.logger.Info("successful link update",
-		zap.String("id", link.Id.String()),
+	h.logger.Info("successful user update",
+		zap.String("id", user.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }
 
-func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	shortId := r.PathValue("shortId")
+	rawId := r.PathValue("id")
 
-	link, err := h.service.FindByShortId(ctx, shortId)
+	var id pgtype.UUID
+	err := id.Scan(rawId)
+	if err != nil {
+		h.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestId(r)),
+		)
+		util.WriteError(
+			w,
+			http.StatusBadRequest,
+			err.Error(),
+			util.GetRequestId(r),
+		)
+		return
+	}
+
+	user, err := h.service.FindById(ctx, id)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
 
-		if errors.Is(err, errors2.ErrLinkNotFound) {
+		if errors.Is(err, errors2.ErrUserNotFound) {
 			util.WriteError(
 				w,
 				http.StatusNotFound,
@@ -224,7 +222,7 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
-	err = h.service.EnsureRights(ctx, link.Id, claims.UserId)
+	err = h.service.EnsureRights(ctx, claims.UserId, user.Id)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
@@ -238,13 +236,13 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.Delete(ctx, link.Id)
+	err = h.service.Delete(ctx, user.Id)
 	if err != nil {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
 
-		if errors.Is(err, errors2.ErrLinkNotFound) {
+		if errors.Is(err, errors2.ErrUserNotFound) {
 			util.WriteError(
 				w,
 				http.StatusNotFound,
@@ -263,8 +261,8 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	h.logger.Info("successful link delete",
-		zap.String("id", link.Id.String()),
+	h.logger.Info("successful user delete",
+		zap.String("id", user.Id.String()),
 		zap.String("req_id", util.GetRequestId(r)),
 	)
 }

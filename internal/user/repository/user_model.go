@@ -6,11 +6,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type LinkModel struct {
+type UserModel struct {
 	Id             pgtype.UUID
-	UserId         pgtype.UUID
-	ShortId        string
-	Origin         string
+	Email          string
+	Username       string
+	Password       string
 	CreationDate   time.Time
 	LastAccessDate *time.Time
 }

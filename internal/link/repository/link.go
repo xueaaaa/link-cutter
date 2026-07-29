@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	errors2 "link-cutter/internal/app/errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -13,8 +14,10 @@ import (
 
 type LinkRepository interface {
 	Create(ctx context.Context, link LinkModel) (pgtype.UUID, error)
+	FindById(ctx context.Context, id pgtype.UUID) (*LinkModel, error)
 	FindByShortId(ctx context.Context, shortId string) (*LinkModel, error)
 	Edit(ctx context.Context, link LinkModel) error
+	EditLastAccess(ctx context.Context, linkId pgtype.UUID) error
 	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
@@ -29,14 +32,15 @@ func NewLinkRepository(db *pgxpool.Pool) LinkRepository {
 }
 
 func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUID, error) {
-	sql := `INSERT INTO links (shortId, origin, creationDate, lastAccessDate)
-			VALUES ($1, $2, $3, $4)
+	sql := `INSERT INTO links (userId, shortId, origin, creationDate, lastAccessDate)
+			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id;`
 
 	var id pgtype.UUID
 	err := r.db.QueryRow(
 		ctx,
 		sql,
+		link.UserId,
 		link.ShortId,
 		link.Origin,
 		link.CreationDate,
@@ -48,6 +52,7 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 		if pgErr.Code == "23505" {
 			return pgtype.UUID{}, errors2.ErrDuplicateShortId
 		}
+		return pgtype.UUID{}, err
 	} else if err != nil {
 		return pgtype.UUID{}, err
 	}
@@ -55,14 +60,15 @@ func (r *linkRepository) Create(ctx context.Context, link LinkModel) (pgtype.UUI
 	return id, nil
 }
 
-func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
-	sql := `SELECT id, shortId, origin, creationDate, lastAccessDate FROM links
-			WHERE shortId = $1`
+func (r *linkRepository) findBy(ctx context.Context, fieldName string, key any) (*LinkModel, error) {
+	sql := `SELECT id, userId, shortId, origin, creationDate, lastAccessDate FROM links
+			WHERE ` + fieldName + `= $1`
 
-	row := r.db.QueryRow(ctx, sql, shortId)
+	row := r.db.QueryRow(ctx, sql, key)
 	var link LinkModel
 	err := row.Scan(
 		&link.Id,
+		&link.UserId,
 		&link.ShortId,
 		&link.Origin,
 		&link.CreationDate,
@@ -78,12 +84,41 @@ func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*Li
 	return &link, nil
 }
 
+func (r *linkRepository) FindById(ctx context.Context, id pgtype.UUID) (*LinkModel, error) {
+	return r.findBy(ctx, "id", id.String())
+}
+
+func (r *linkRepository) FindByShortId(ctx context.Context, shortId string) (*LinkModel, error) {
+	return r.findBy(ctx, "shortId", shortId)
+}
+
 func (r *linkRepository) Edit(ctx context.Context, link LinkModel) error {
 	sql := `UPDATE links
-			SET origin = $1, lastAccessDate = $2
-			WHERE id = $3`
+			SET origin = COALESCE(NULLIF($1, ''), origin)
+			WHERE id = $2`
 
-	tag, err := r.db.Exec(ctx, sql, link.Origin, link.LastAccessDate, link.Id)
+	tag, err := r.db.Exec(ctx, sql,
+		link.Origin,
+		link.Id,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors2.ErrLinkNotFound
+	}
+	return nil
+}
+
+func (r *linkRepository) EditLastAccess(ctx context.Context, id pgtype.UUID) error {
+	sql := `UPDATE links
+			SET lastAccessDate = $1
+			WHERE id = $2`
+
+	tag, err := r.db.Exec(ctx, sql,
+		time.Now().UTC(),
+		id,
+	)
 	if err != nil {
 		return err
 	}

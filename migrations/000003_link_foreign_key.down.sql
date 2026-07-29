@@ -1,0 +1,9 @@
+BEGIN;
+
+ALTER TABLE links
+DROP CONSTRAINT fk_user;
+
+ALTER TABLE links
+DROP COLUMN userId;
+
+COMMIT;
