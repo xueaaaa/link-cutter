@@ -24,7 +24,7 @@ type UserService interface {
 	Delete(ctx context.Context, id pgtype.UUID) error
 }
 
-type userSerivce struct {
+type userService struct {
 	repo     repository.UserRepository
 	config   config.Config
 	logger   *zap.Logger
@@ -32,7 +32,7 @@ type userSerivce struct {
 }
 
 func NewUserService(repo repository.UserRepository, config config.Config, logger *zap.Logger) UserService {
-	return &userSerivce{
+	return &userService{
 		repo:     repo,
 		config:   config,
 		logger:   logger,
@@ -40,7 +40,7 @@ func NewUserService(repo repository.UserRepository, config config.Config, logger
 	}
 }
 
-func (s *userSerivce) Create(ctx context.Context, user model.User) (pgtype.UUID, error) {
+func (s *userService) Create(ctx context.Context, user model.User) (pgtype.UUID, error) {
 	user.CreationDate = time.Now()
 	err := s.validate.StructCtx(ctx, user)
 	if err != nil {
@@ -56,7 +56,7 @@ func (s *userSerivce) Create(ctx context.Context, user model.User) (pgtype.UUID,
 	return s.repo.Create(ctx, repository.UserModel(user))
 }
 
-func (s *userSerivce) Auth(ctx context.Context, email, password string) (string, error) {
+func (s *userService) Auth(ctx context.Context, email, password string) (string, error) {
 	err := s.validate.VarCtx(ctx, email, "email")
 	if err != nil {
 		return "", err
@@ -90,7 +90,7 @@ func (s *userSerivce) Auth(ctx context.Context, email, password string) (string,
 	return util.IssueToken(s.config.JwtSigningKey, user)
 }
 
-func (s *userSerivce) FindById(ctx context.Context, id pgtype.UUID) (model.User, error) {
+func (s *userService) FindById(ctx context.Context, id pgtype.UUID) (model.User, error) {
 	um, err := s.repo.FindById(ctx, id)
 
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *userSerivce) FindById(ctx context.Context, id pgtype.UUID) (model.User,
 	return user, nil
 }
 
-func (s *userSerivce) Edit(ctx context.Context, user model.User) error {
+func (s *userService) Edit(ctx context.Context, user model.User) error {
 	if user.Username != "" {
 		err := s.validate.VarCtx(ctx, user.Username, "min=4,max=16")
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *userSerivce) Edit(ctx context.Context, user model.User) error {
 	return s.repo.Edit(ctx, um)
 }
 
-func (s *userSerivce) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, expectedUserId pgtype.UUID) error {
+func (s *userService) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, expectedUserId pgtype.UUID) error {
 	user, err := s.FindById(ctx, expectedUserId)
 	if err != nil {
 		return err
@@ -150,6 +150,6 @@ func (s *userSerivce) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, e
 	return nil
 }
 
-func (s *userSerivce) Delete(ctx context.Context, id pgtype.UUID) error {
+func (s *userService) Delete(ctx context.Context, id pgtype.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
