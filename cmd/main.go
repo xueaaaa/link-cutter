@@ -67,7 +67,7 @@ func main() {
 	})
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", userHandler.Create)
-		r.Get("/", userHandler.Auth)
+		r.Post("/auth", userHandler.Auth)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(cfg.JwtSigningKey, logger))
 			r.Patch("/", userHandler.Edit)

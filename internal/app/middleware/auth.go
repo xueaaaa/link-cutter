@@ -46,14 +46,18 @@ func Auth(key string, logger *zap.Logger) func(handler http.Handler) http.Handle
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, claims, err := parseToken(key, r)
 
-			if err != nil || !token.Valid {
-				logger.Info(err.Error(),
+			if err != nil || token == nil || !token.Valid {
+				msg := "invalid token"
+				if err != nil {
+					msg = err.Error()
+				}
+				logger.Info(msg,
 					zap.String("req_id", util.GetRequestId(r)),
 				)
 				util.WriteError(
 					w,
 					http.StatusUnauthorized,
-					err.Error(),
+					msg,
 					util.GetRequestId(r),
 				)
 				return
