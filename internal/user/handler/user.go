@@ -2,8 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
-	errors2 "link-cutter/internal/app/errors"
 	"link-cutter/internal/app/middleware"
 	"link-cutter/internal/app/util"
 	"link-cutter/internal/user/model"
@@ -31,15 +29,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var createDTO CreateUserDTO
 	err := json.NewDecoder(r.Body).Decode(&createDTO)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
@@ -50,15 +40,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := h.service.Create(ctx, user)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusInternalServerError,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
@@ -74,29 +56,13 @@ func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
 	var authDTO AuthUserDTO
 	err := json.NewDecoder(r.Body).Decode(&authDTO)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
 	token, err := h.service.Auth(ctx, authDTO.Email, authDTO.Password)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusUnauthorized,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
@@ -106,7 +72,6 @@ func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error(err.Error(),
 			zap.String("req_id", util.GetRequestId(r)),
 		)
-		return
 	}
 }
 
@@ -116,30 +81,14 @@ func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&editDto)
 
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, claims.UserId, editDto.Id)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
@@ -150,24 +99,7 @@ func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.Edit(ctx, user)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		if errors.Is(err, errors2.ErrUserNotFound) {
-			util.WriteError(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		} else {
-			util.WriteError(
-				w,
-				http.StatusInternalServerError,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		}
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
@@ -185,78 +117,26 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	var id pgtype.UUID
 	err := id.Scan(rawId)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
 	user, err := h.service.FindById(ctx, id)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-
-		if errors.Is(err, errors2.ErrUserNotFound) {
-			util.WriteError(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		} else {
-			util.WriteError(
-				w,
-				http.StatusInternalServerError,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		}
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, claims.UserId, user.Id)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-		util.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
-			util.GetRequestId(r),
-		)
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
 	err = h.service.Delete(ctx, user.Id)
 	if err != nil {
-		h.logger.Error(err.Error(),
-			zap.String("req_id", util.GetRequestId(r)),
-		)
-
-		if errors.Is(err, errors2.ErrUserNotFound) {
-			util.WriteError(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		} else {
-			util.WriteError(
-				w,
-				http.StatusInternalServerError,
-				err.Error(),
-				util.GetRequestId(r),
-			)
-		}
+		util.HandleError(w, r, h.logger, err)
 		return
 	}
 
