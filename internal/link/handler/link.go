@@ -28,7 +28,7 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var createDto CreateLinkDTO
 	err := json.NewDecoder(r.Body).Decode(&createDto)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -39,7 +39,7 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := h.service.Create(ctx, link)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *LinkHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(created)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *LinkHandler) Go(w http.ResponseWriter, r *http.Request) {
 
 	link, err := h.service.FindByShortId(ctx, id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -88,14 +88,14 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&editDto)
 
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, editDto.Id, claims.UserId)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *LinkHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.Edit(ctx, link)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -122,20 +122,20 @@ func (h *LinkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	link, err := h.service.FindByShortId(ctx, shortId)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, link.Id, claims.UserId)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	err = h.service.Delete(ctx, link.Id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 

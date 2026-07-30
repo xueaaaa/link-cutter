@@ -44,57 +44,85 @@ func (s *userService) Create(ctx context.Context, user model.User) (pgtype.UUID,
 	user.CreationDate = time.Now()
 	err := s.validate.StructCtx(ctx, user)
 	if err != nil {
-		return pgtype.UUID{}, err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return pgtype.UUID{}, errors2.ErrInvalidInputData
 	}
 
 	hash, err := util.HashPassword(user.Password)
 	if err != nil {
-		return pgtype.UUID{}, err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return pgtype.UUID{}, errors2.ErrFailedHashPassword
 	}
 	user.Password = string(hash)
 
-	return s.repo.Create(ctx, repository.UserModel(user))
+	id, err := s.repo.Create(ctx, repository.UserModel(user))
+	if err != nil {
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return pgtype.UUID{}, errors2.ErrDatabase
+	}
+	return id, nil
 }
 
 func (s *userService) Auth(ctx context.Context, email, password string) (string, error) {
 	err := s.validate.VarCtx(ctx, email, "email")
 	if err != nil {
-		return "", err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrIncorrectAuthData
 	}
 	err = s.validate.VarCtx(ctx, password, "min=6,max=72,printascii,excludesall= ")
 	if err != nil {
-		return "", err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrIncorrectAuthData
 	}
 
 	got, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
-		return "", err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrDatabase
 	}
 	if got == nil {
-		return "", errors2.ErrUserNotFound
+		return "", errors2.ErrIncorrectAuthData
 	}
 
 	user := model.User(*got)
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return "", err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrIncorrectAuthData
 	}
 
 	t := time.Now()
 	got.LastAccessDate = &t
 	err = s.repo.EditLastAccess(ctx, got.Id)
 	if err != nil {
-		return "", err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrDatabase
 	}
 
-	return util.IssueToken(s.config.JwtSigningKey, user)
+	token, err := util.IssueToken(s.config.JwtSigningKey, user)
+	if err != nil {
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return "", errors2.ErrIssueToken
+	}
+	return token, nil
 }
 
 func (s *userService) FindById(ctx context.Context, id pgtype.UUID) (model.User, error) {
 	um, err := s.repo.FindById(ctx, id)
 
 	if err != nil {
-		return model.User{}, err
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return model.User{}, errors2.ErrDatabase
 	}
 
 	if um == nil {
@@ -104,7 +132,7 @@ func (s *userService) FindById(ctx context.Context, id pgtype.UUID) (model.User,
 	user := model.User(*um)
 	err = s.repo.EditLastAccess(ctx, user.Id)
 	if err != nil {
-		return model.User{}, err
+		return model.User{}, errors2.ErrDatabase
 	}
 
 	return user, nil
@@ -114,18 +142,20 @@ func (s *userService) Edit(ctx context.Context, user model.User) error {
 	if user.Username != "" {
 		err := s.validate.VarCtx(ctx, user.Username, "min=4,max=16")
 		if err != nil {
-			return err
+			return errors2.ErrInvalidInputData
 		}
 	}
 	if user.Password != "" {
 		err := s.validate.VarCtx(ctx, user.Password, "min=6,max=72,printascii,excludesall= ")
 		if err != nil {
-			return err
+			return errors2.ErrInvalidInputData
 		}
 
 		p, err := util.HashPassword(user.Password)
 		if err != nil {
-			return err
+			s.logger.Error(err.Error(),
+				zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+			return errors2.ErrFailedHashPassword
 		}
 		user.Password = string(p)
 	}
@@ -136,12 +166,20 @@ func (s *userService) Edit(ctx context.Context, user model.User) error {
 		Password: user.Password,
 	}
 
-	return s.repo.Edit(ctx, um)
+	err := s.repo.Edit(ctx, um)
+	if err != nil {
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return errors2.ErrDatabase
+	}
+	return nil
 }
 
 func (s *userService) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, expectedUserId pgtype.UUID) error {
 	user, err := s.FindById(ctx, expectedUserId)
 	if err != nil {
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
 		return err
 	}
 	if user.Id != ctxUserId {
@@ -151,5 +189,11 @@ func (s *userService) EnsureRights(ctx context.Context, ctxUserId pgtype.UUID, e
 }
 
 func (s *userService) Delete(ctx context.Context, id pgtype.UUID) error {
-	return s.repo.Delete(ctx, id)
+	err := s.repo.Delete(ctx, id)
+	if err != nil {
+		s.logger.Error(err.Error(),
+			zap.String("req_id", util.GetRequestIdFromContext(ctx)))
+		return errors2.ErrDatabase
+	}
+	return nil
 }

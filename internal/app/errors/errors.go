@@ -52,3 +52,23 @@ var ErrNotEnoughRights = APIError{
 	Code:    http.StatusForbidden,
 	Message: "not enough rights",
 }
+var ErrIncorrectAuthData = APIError{
+	Code:    http.StatusUnauthorized,
+	Message: "incorrect authorization data",
+}
+var ErrInvalidInputData = APIError{
+	Code:    http.StatusBadRequest,
+	Message: "input data was not validated",
+}
+var ErrFailedHashPassword = APIError{
+	Code:    http.StatusInternalServerError,
+	Message: "error while hashing password",
+}
+var ErrDatabase = APIError{
+	Code:    http.StatusInternalServerError,
+	Message: "error while working with the database",
+}
+var ErrIssueToken = APIError{
+	Code:    http.StatusInternalServerError,
+	Message: "error while issuing token",
+}

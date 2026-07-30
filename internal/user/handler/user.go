@@ -25,11 +25,11 @@ func NewUserHandler(service service.UserService, logger *zap.Logger) *UserHandle
 }
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := util.PutRequestId(r.Context(), util.GetRequestId(r))
 	var createDTO CreateUserDTO
 	err := json.NewDecoder(r.Body).Decode(&createDTO)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := h.service.Create(ctx, user)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -52,17 +52,17 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := util.PutRequestId(r.Context(), util.GetRequestId(r))
 	var authDTO AuthUserDTO
 	err := json.NewDecoder(r.Body).Decode(&authDTO)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	token, err := h.service.Auth(ctx, authDTO.Email, authDTO.Password)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -76,19 +76,19 @@ func (h *UserHandler) Auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := util.PutRequestId(r.Context(), util.GetRequestId(r))
 	var editDto EditUserDTO
 	err := json.NewDecoder(r.Body).Decode(&editDto)
 
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, claims.UserId, editDto.Id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.Edit(ctx, user)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
@@ -111,32 +111,32 @@ func (h *UserHandler) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := util.PutRequestId(r.Context(), util.GetRequestId(r))
 	rawId := r.PathValue("id")
 
 	var id pgtype.UUID
 	err := id.Scan(rawId)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	user, err := h.service.FindById(ctx, id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	claims, _ := middleware.ClaimsFromContext(ctx)
 	err = h.service.EnsureRights(ctx, claims.UserId, user.Id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 
 	err = h.service.Delete(ctx, user.Id)
 	if err != nil {
-		util.HandleError(w, r, h.logger, err)
+		util.HandleError(w, r, err)
 		return
 	}
 

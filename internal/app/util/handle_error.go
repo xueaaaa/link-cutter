@@ -4,16 +4,11 @@ import (
 	"errors"
 	errors2 "link-cutter/internal/app/errors"
 	"net/http"
-
-	"go.uber.org/zap"
 )
 
-func HandleError(w http.ResponseWriter, r *http.Request, logger *zap.Logger, err error, defaultCode ...int) {
+func HandleError(w http.ResponseWriter, r *http.Request, err error, defaultCode ...int) {
 	var apiErr errors2.APIError
 
-	logger.Error(err.Error(),
-		zap.String("req_id", GetRequestId(r)),
-	)
 	if errors.As(err, &apiErr) {
 		WriteError(
 			w,
